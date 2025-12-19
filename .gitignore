@@ -44,10 +44,10 @@ pip-delete-this-directory.txt
 *.xdy
 *-blx.bib
 
-# Keep these files (for documentation purposes - git tracks files, not ignores)
-# *.pdf
-# *.html
-# *.ipynb
+# Specific files to ignore
+profile_import.py
+Untitled.ipynb
+geojupyter-workshop-slide.html
 
 # OS files
 .DS_Store
