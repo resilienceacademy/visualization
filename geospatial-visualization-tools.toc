@@ -1,0 +1,11 @@
+\beamer@sectionintoc {1}{Introduction to Geospatial Visualization}{3}{0}{1}
+\beamer@sectionintoc {2}{Python Visualization Tools}{5}{0}{2}
+\beamer@subsectionintoc {2}{1}{leafmap}{6}{0}{2}
+\beamer@subsectionintoc {2}{2}{Folium}{8}{0}{2}
+\beamer@subsectionintoc {2}{3}{GeoPandas \& Matplotlib}{9}{0}{2}
+\beamer@subsectionintoc {2}{4}{Plotly}{10}{0}{2}
+\beamer@sectionintoc {3}{Desktop \& Web-Based Tools}{11}{0}{3}
+\beamer@sectionintoc {4}{Case Studies}{14}{0}{4}
+\beamer@sectionintoc {5}{Tool Comparison}{18}{0}{5}
+\beamer@sectionintoc {6}{Best Practices}{19}{0}{6}
+\beamer@sectionintoc {7}{Resources}{20}{0}{7}

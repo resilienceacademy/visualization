@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zanzibar Flood Risk Analysis</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+    <!-- Chart.js for analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fa;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
+            color: white;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .header .subtitle {
+            font-size: 0.85rem;
+            opacity: 0.8;
+        }
+
+        .header-right {
+            text-align: right;
+            font-size: 0.85rem;
+        }
+
+        /* Main Container */
+        .main-container {
+            display: flex;
+            height: calc(100vh - 70px);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 350px;
+            background: white;
+            overflow-y: auto;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+        }
+
+        .sidebar-section {
+            padding: 20px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .sidebar-section h3 {
+            color: #1e3a5f;
+            margin-bottom: 15px;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Statistics Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            border-left: 4px solid #2d5a87;
+        }
+
+        .stat-card.high { border-left-color: #dc3545; }
+        .stat-card.medium { border-left-color: #ffc107; }
+        .stat-card.low { border-left-color: #28a745; }
+
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #1e3a5f;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: #666;
+            text-transform: uppercase;
+        }
+
+        /* Legend */
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            margin-right: 10px;
+            border: 1px solid rgba(0,0,0,0.2);
+        }
+
+        /* Layer Controls */
+        .layer-toggle {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .layer-toggle:hover {
+            background: #e9ecef;
+        }
+
+        .layer-toggle input {
+            margin-right: 10px;
+        }
+
+        /* Chart Container */
+        .chart-container {
+            height: 200px;
+            margin-top: 15px;
+        }
+
+        /* Map Container */
+        .map-container {
+            flex: 1;
+            position: relative;
+            min-height: 400px;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* Info Panel on Map */
+        .info-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 1001;
+            max-width: 250px;
+            pointer-events: none;
+        }
+
+        .info-panel h4 {
+            margin-bottom: 10px;
+            color: #1e3a5f;
+        }
+
+        .info-panel p {
+            font-size: 0.85rem;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        /* Custom Popup Styles */
+        .custom-popup .leaflet-popup-content-wrapper {
+            border-radius: 8px;
+            box-shadow: 0 3px 14px rgba(0,0,0,0.2);
+        }
+
+        .popup-content {
+            padding: 5px;
+        }
+
+        .popup-content h4 {
+            color: #1e3a5f;
+            margin-bottom: 8px;
+            border-bottom: 2px solid #2d5a87;
+            padding-bottom: 5px;
+        }
+
+        .popup-content .risk-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: white;
+        }
+
+        .risk-badge.high { background: #dc3545; }
+        .risk-badge.medium { background: #ffc107; color: #333; }
+        .risk-badge.low { background: #28a745; }
+
+        /* Analysis Table */
+        .analysis-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        .analysis-table th,
+        .analysis-table td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .analysis-table th {
+            background: #f8f9fa;
+            color: #1e3a5f;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .main-container {
+                flex-direction: column;
+            }
+            .sidebar {
+                width: 100%;
+                height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div>
+            <h1><i class="fas fa-water"></i> Zanzibar Flood Risk Analysis</h1>
+            <div class="subtitle">Interactive Geospatial Visualization | Resilience Academy</div>
+        </div>
+        <div class="header-right">
+            <div>Last Updated: December 2025</div>
+            <div>Stone Town & Surrounding Areas</div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <!-- Statistics Section -->
+            <div class="sidebar-section">
+                <h3><i class="fas fa-chart-bar"></i> Risk Statistics</h3>
+                <div class="stats-grid">
+                    <div class="stat-card high">
+                        <div class="stat-value">12</div>
+                        <div class="stat-label">High Risk Zones</div>
+                    </div>
+                    <div class="stat-card medium">
+                        <div class="stat-value">18</div>
+                        <div class="stat-label">Medium Risk</div>
+                    </div>
+                    <div class="stat-card low">
+                        <div class="stat-value">25</div>
+                        <div class="stat-label">Low Risk</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">45K</div>
+                        <div class="stat-label">People Affected</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Legend Section -->
+            <div class="sidebar-section">
+                <h3><i class="fas fa-layer-group"></i> Map Legend</h3>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: rgba(220, 53, 69, 0.6);"></div>
+                    <span>High Flood Risk</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: rgba(255, 193, 7, 0.6);"></div>
+                    <span>Medium Flood Risk</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: rgba(40, 167, 69, 0.6);"></div>
+                    <span>Low Flood Risk</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #3388ff;"></div>
+                    <span>Drainage Channels</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #e74c3c; border-radius: 50%;"></div>
+                    <span>Critical Infrastructure</span>
+                </div>
+            </div>
+
+            <!-- Layer Controls -->
+            <div class="sidebar-section">
+                <h3><i class="fas fa-sliders-h"></i> Layer Controls</h3>
+                <label class="layer-toggle">
+                    <input type="checkbox" id="toggleFloodZones" checked>
+                    <span>Flood Risk Zones</span>
+                </label>
+                <label class="layer-toggle">
+                    <input type="checkbox" id="toggleDrainage" checked>
+                    <span>Drainage Network</span>
+                </label>
+                <label class="layer-toggle">
+                    <input type="checkbox" id="toggleInfrastructure" checked>
+                    <span>Critical Infrastructure</span>
+                </label>
+                <label class="layer-toggle">
+                    <input type="checkbox" id="toggleBuildings">
+                    <span>Building Footprints</span>
+                </label>
+            </div>
+
+            <!-- Chart Section -->
+            <div class="sidebar-section">
+                <h3><i class="fas fa-chart-pie"></i> Risk Distribution</h3>
+                <div class="chart-container">
+                    <canvas id="riskChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Analysis Summary -->
+            <div class="sidebar-section">
+                <h3><i class="fas fa-clipboard-list"></i> Key Findings</h3>
+                <table class="analysis-table">
+                    <tr>
+                        <th>Indicator</th>
+                        <th>Value</th>
+                    </tr>
+                    <tr>
+                        <td>Total Area Analyzed</td>
+                        <td>48.5 km²</td>
+                    </tr>
+                    <tr>
+                        <td>Flood-prone Area</td>
+                        <td>12.3 km²</td>
+                    </tr>
+                    <tr>
+                        <td>Buildings at Risk</td>
+                        <td>3,450</td>
+                    </tr>
+                    <tr>
+                        <td>Roads Affected</td>
+                        <td>28 km</td>
+                    </tr>
+                    <tr>
+                        <td>Schools in Risk Zone</td>
+                        <td>8</td>
+                    </tr>
+                    <tr>
+                        <td>Health Facilities</td>
+                        <td>3</td>
+                    </tr>
+                </table>
+            </div>
+        </aside>
+
+        <!-- Map Container -->
+        <div class="map-container">
+            <div id="map"></div>
+
+            <!-- Hover Info Panel -->
+            <div class="info-panel" id="infoPanel" style="display: none;">
+                <h4 id="infoTitle">Zone Information</h4>
+                <p><strong>Risk Level:</strong> <span id="infoRisk"></span></p>
+                <p><strong>Population:</strong> <span id="infoPop"></span></p>
+                <p><strong>Elevation:</strong> <span id="infoElev"></span></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        // Initialize the map centered on Stone Town, Zanzibar
+        const map = L.map('map', {
+            center: [-6.165, 39.195],
+            zoom: 14,
+            zoomControl: true
+        });
+
+        // Basemap layers
+        const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        });
+
+        const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: '© Esri'
+        });
+
+        const cartoLight = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '© CARTO'
+        });
+
+        // Add default basemap
+        cartoLight.addTo(map);
+
+        // Layer control for basemaps
+        const baseMaps = {
+            "Light Map": cartoLight,
+            "OpenStreetMap": osmLayer,
+            "Satellite": satelliteLayer
+        };
+
+        // ============================================
+        // FLOOD RISK ZONES (Sample GeoJSON Data)
+        // ============================================
+        const floodZonesData = {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "properties": {
+                        "name": "Creek Road Area",
+                        "risk_level": "High",
+                        "population": 5200,
+                        "elevation": "2-4m",
+                        "description": "Low-lying area near creek with poor drainage"
+                    },
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": [[[39.185, -6.168], [39.195, -6.168], [39.195, -6.158], [39.185, -6.158], [39.185, -6.168]]]
+                    }
+                },
+                {
+                    "type": "Feature",
+                    "properties": {
+                        "name": "Malindi Coastal Zone",
+                        "risk_level": "High",
+                        "population": 3800,
+                        "elevation": "1-3m",
+                        "description": "Coastal area vulnerable to storm surge"
+                    },
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": [[[39.190, -6.155], [39.200, -6.155], [39.200, -6.148], [39.190, -6.148], [39.190, -6.155]]]
+                    }
+                },
+                {
+                    "type": "Feature",
+                    "properties": {
+                        "name": "Forodhani Gardens Area",
+                        "risk_level": "Medium",
+                        "population": 2100,
+                        "elevation": "3-5m",
+                        "description": "Moderate drainage capacity, occasional flooding"
+                    },
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": [[[39.188, -6.162], [39.194, -6.162], [39.194, -6.158], [39.188, -6.158], [39.188, -6.162]]]
+                    }
+                },
+                {
+                    "type": "Feature",
+                    "properties": {
+                        "name": "Shangani District",
+                        "risk_level": "Medium",
+                        "population": 4500,
+                        "elevation": "4-6m",
+                        "description": "Historical flooding during heavy rains"
+                    },
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": [[[39.180, -6.160], [39.186, -6.160], [39.186, -6.155], [39.180, -6.155], [39.180, -6.160]]]
+                    }
+                },
+                {
+                    "type": "Feature",
+                    "properties": {
+                        "name": "Hurumzi Area",
+                        "risk_level": "Low",
+                        "population": 1800,
+                        "elevation": "8-12m",
+                        "description": "Higher elevation, good drainage"
+                    },
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": [[[39.192, -6.165], [39.198, -6.165], [39.198, -6.160], [39.192, -6.160], [39.192, -6.165]]]
+                    }
+                },
+                {
+                    "type": "Feature",
+                    "properties": {
+                        "name": "Kiponda District",
+                        "risk_level": "Low",
+                        "population": 2300,
+                        "elevation": "6-10m",
+                        "description": "Improved drainage infrastructure"
+                    },
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": [[[39.195, -6.170], [39.202, -6.170], [39.202, -6.165], [39.195, -6.165], [39.195, -6.170]]]
+                    }
+                }
+            ]
+        };
+
+        // Style function for flood zones
+        function getFloodZoneStyle(feature) {
+            const risk = feature.properties.risk_level;
+            let color;
+            switch(risk) {
+                case 'High': color = 'rgba(220, 53, 69, 0.6)'; break;
+                case 'Medium': color = 'rgba(255, 193, 7, 0.6)'; break;
+                case 'Low': color = 'rgba(40, 167, 69, 0.6)'; break;
+                default: color = 'rgba(128, 128, 128, 0.5)';
+            }
+            return {
+                fillColor: color,
+                weight: 2,
+                opacity: 1,
+                color: 'white',
+                fillOpacity: 0.6
+            };
+        }
+
+        // Popup content for flood zones
+        function getPopupContent(feature) {
+            const props = feature.properties;
+            const badgeClass = props.risk_level.toLowerCase();
+            return `
+                <div class="popup-content">
+                    <h4>${props.name}</h4>
+                    <p><span class="risk-badge ${badgeClass}">${props.risk_level} Risk</span></p>
+                    <p><strong>Population:</strong> ${props.population.toLocaleString()}</p>
+                    <p><strong>Elevation:</strong> ${props.elevation}</p>
+                    <p><strong>Notes:</strong> ${props.description}</p>
+                </div>
+            `;
+        }
+
+        // Create flood zones layer
+        const floodZonesLayer = L.geoJSON(floodZonesData, {
+            style: getFloodZoneStyle,
+            onEachFeature: function(feature, layer) {
+                layer.bindPopup(getPopupContent(feature), {className: 'custom-popup'});
+
+                // Hover effects
+                layer.on('mouseover', function(e) {
+                    const props = feature.properties;
+                    document.getElementById('infoPanel').style.display = 'block';
+                    document.getElementById('infoTitle').textContent = props.name;
+                    document.getElementById('infoRisk').textContent = props.risk_level;
+                    document.getElementById('infoPop').textContent = props.population.toLocaleString();
+                    document.getElementById('infoElev').textContent = props.elevation;
+
+                    layer.setStyle({weight: 4, fillOpacity: 0.8});
+                });
+
+                layer.on('mouseout', function(e) {
+                    document.getElementById('infoPanel').style.display = 'none';
+                    floodZonesLayer.resetStyle(layer);
+                });
+            }
+        }).addTo(map);
+
+        // ============================================
+        // DRAINAGE NETWORK
+        // ============================================
+        const drainageData = {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "properties": {"name": "Main Creek Channel", "type": "Primary", "capacity": "High"},
+                    "geometry": {
+                        "type": "LineString",
+                        "coordinates": [[39.182, -6.170], [39.188, -6.165], [39.192, -6.160], [39.196, -6.155], [39.200, -6.150]]
+                    }
+                },
+                {
+                    "type": "Feature",
+                    "properties": {"name": "Forodhani Drain", "type": "Secondary", "capacity": "Medium"},
+                    "geometry": {
+                        "type": "LineString",
+                        "coordinates": [[39.188, -6.162], [39.190, -6.158], [39.192, -6.155]]
+                    }
+                },
+                {
+                    "type": "Feature",
+                    "properties": {"name": "Shangani Outlet", "type": "Secondary", "capacity": "Low"},
+                    "geometry": {
+                        "type": "LineString",
+                        "coordinates": [[39.180, -6.158], [39.184, -6.156], [39.188, -6.154]]
+                    }
+                }
+            ]
+        };
+
+        const drainageLayer = L.geoJSON(drainageData, {
+            style: function(feature) {
+                return {
+                    color: '#3388ff',
+                    weight: feature.properties.type === 'Primary' ? 4 : 2,
+                    opacity: 0.8,
+                    dashArray: feature.properties.type === 'Primary' ? null : '5, 5'
+                };
+            },
+            onEachFeature: function(feature, layer) {
+                layer.bindPopup(`
+                    <div class="popup-content">
+                        <h4>${feature.properties.name}</h4>
+                        <p><strong>Type:</strong> ${feature.properties.type}</p>
+                        <p><strong>Capacity:</strong> ${feature.properties.capacity}</p>
+                    </div>
+                `);
+            }
+        }).addTo(map);
+
+        // ============================================
+        // CRITICAL INFRASTRUCTURE
+        // ============================================
+        const infrastructureData = [
+            {name: "Mnazi Mmoja Hospital", type: "Hospital", lat: -6.162, lng: 39.190, risk: "Medium"},
+            {name: "Stone Town Primary School", type: "School", lat: -6.158, lng: 39.188, risk: "High"},
+            {name: "Central Police Station", type: "Police", lat: -6.165, lng: 39.193, risk: "Low"},
+            {name: "Forodhani Health Center", type: "Health", lat: -6.160, lng: 39.191, risk: "Medium"},
+            {name: "Zanzibar Port", type: "Port", lat: -6.155, lng: 39.195, risk: "High"},
+            {name: "Darajani Market", type: "Market", lat: -6.163, lng: 39.188, risk: "High"},
+            {name: "Municipal Office", type: "Government", lat: -6.168, lng: 39.192, risk: "Low"}
+        ];
+
+        // Custom icons
+        function getInfraIcon(type) {
+            const iconMap = {
+                'Hospital': 'fa-hospital',
+                'School': 'fa-school',
+                'Police': 'fa-shield',
+                'Health': 'fa-plus-square',
+                'Port': 'fa-anchor',
+                'Market': 'fa-store',
+                'Government': 'fa-building'
+            };
+            return iconMap[type] || 'fa-circle';
+        }
+
+        const infrastructureLayer = L.layerGroup();
+
+        infrastructureData.forEach(item => {
+            const marker = L.circleMarker([item.lat, item.lng], {
+                radius: 8,
+                fillColor: item.risk === 'High' ? '#e74c3c' : item.risk === 'Medium' ? '#f39c12' : '#27ae60',
+                color: '#fff',
+                weight: 2,
+                opacity: 1,
+                fillOpacity: 0.8
+            });
+
+            marker.bindPopup(`
+                <div class="popup-content">
+                    <h4>${item.name}</h4>
+                    <p><strong>Type:</strong> ${item.type}</p>
+                    <p><strong>Flood Risk:</strong> <span class="risk-badge ${item.risk.toLowerCase()}">${item.risk}</span></p>
+                </div>
+            `);
+
+            infrastructureLayer.addLayer(marker);
+        });
+
+        infrastructureLayer.addTo(map);
+
+        // ============================================
+        // BUILDINGS LAYER (placeholder - would load from external source)
+        // ============================================
+        const buildingsLayer = L.layerGroup();
+        // In production, this would load building footprints from GeoJSON or WFS
+
+        // ============================================
+        // LAYER CONTROLS
+        // ============================================
+        L.control.layers(baseMaps, {
+            "Flood Risk Zones": floodZonesLayer,
+            "Drainage Network": drainageLayer,
+            "Critical Infrastructure": infrastructureLayer
+        }).addTo(map);
+
+        // Sidebar layer toggles
+        document.getElementById('toggleFloodZones').addEventListener('change', function() {
+            this.checked ? map.addLayer(floodZonesLayer) : map.removeLayer(floodZonesLayer);
+        });
+
+        document.getElementById('toggleDrainage').addEventListener('change', function() {
+            this.checked ? map.addLayer(drainageLayer) : map.removeLayer(drainageLayer);
+        });
+
+        document.getElementById('toggleInfrastructure').addEventListener('change', function() {
+            this.checked ? map.addLayer(infrastructureLayer) : map.removeLayer(infrastructureLayer);
+        });
+
+        document.getElementById('toggleBuildings').addEventListener('change', function() {
+            this.checked ? map.addLayer(buildingsLayer) : map.removeLayer(buildingsLayer);
+        });
+
+        // ============================================
+        // SCALE BAR
+        // ============================================
+        L.control.scale({imperial: false}).addTo(map);
+
+        // ============================================
+        // CHART.JS - Risk Distribution
+        // ============================================
+        const ctx = document.getElementById('riskChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['High Risk', 'Medium Risk', 'Low Risk'],
+                datasets: [{
+                    data: [12, 18, 25],
+                    backgroundColor: [
+                        'rgba(220, 53, 69, 0.8)',
+                        'rgba(255, 193, 7, 0.8)',
+                        'rgba(40, 167, 69, 0.8)'
+                    ],
+                    borderColor: [
+                        'rgba(220, 53, 69, 1)',
+                        'rgba(255, 193, 7, 1)',
+                        'rgba(40, 167, 69, 1)'
+                    ],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            boxWidth: 12,
+                            padding: 10
+                        }
+                    }
+                }
+            }
+        });
+
+        // ============================================
+        // FIT MAP TO DATA
+        // ============================================
+        map.fitBounds(floodZonesLayer.getBounds(), {padding: [20, 20]});
+    </script>
+</body>
+</html>
